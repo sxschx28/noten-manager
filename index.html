@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NotenManager</title>
+<style>
+:root {
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-rgb: 59, 130, 246;
+  --bg-main: linear-gradient(135deg, #0f172a 0%, #1e3a5f 45%, #1e40af 100%);
+  --bg-card: rgba(255, 255, 255, 0.08);
+  --bg-card-hover: rgba(255, 255, 255, 0.13);
+  --bg-sidebar: rgba(15, 23, 42, 0.88);
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-secondary: #cbd5e1;
+  --border: rgba(255, 255, 255, 0.1);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+  --radius: 16px;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --transition: 0.2s ease;
+}
+[data-theme="light"] {
+  --bg-main: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 45%, #7dd3fc 100%);
+  --bg-card: rgba(255, 255, 255, 0.72);
+  --bg-card-hover: rgba(255, 255, 255, 0.92);
+  --bg-sidebar: rgba(255, 255, 255, 0.88);
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-secondary: #334155;
+  --border: rgba(0, 0, 0, 0.08);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; font-family: var(--font); background: var(--bg-main); background-attachment: fixed; background-size: cover; color: var(--text); overflow-x: hidden; }
+button, input, select, textarea { font-family: inherit; }
+button { cursor: pointer; border: none; background: none; color: inherit; }
+
+/* Login */
+#login-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%);
+  transition: opacity 0.4s, visibility 0.4s;
+}
+#login-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.login-card {
+  width: 100%; max-width: 400px; padding: 2.5rem;
+  background: rgba(255,255,255,0.08); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 24px; box-shadow: var(--shadow); text-align: center;
+}
+.login-card h1 {
+  font-size: 1.75rem; font-weight: 700; margin-bottom: 0.4rem;
+  background: linear-gradient(90deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.login-card p { color: #94a3b8; margin-bottom: 1.75rem; font-size: 0.95rem; }
+.login-input-wrap { position: relative; margin-bottom: 1.15rem; }
+.login-input-wrap input {
+  width: 100%; padding: 0.9rem 3rem 0.9rem 1.1rem;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px; color: #fff; font-size: 1rem; outline: none;
+}
+.login-input-wrap input:focus { border-color: #3b82f6; }
+.login-input-wrap .toggle-pw {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: #94a3b8; padding: 4px;
+}
+.login-btn {
+  width: 100%; padding: 0.95rem; background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 12px; color: #fff; font-size: 1rem; font-weight: 600;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.login-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(59,130,246,0.4); }
+.login-error { color: #f87171; font-size: 0.875rem; margin-top: 1rem; min-height: 1.25rem; }
+
+/* Layout */
+#app { display: none; min-height: 100vh; }
+#app.visible { display: flex; }
+.sidebar {
+  width: 250px; min-height: 100vh; background: var(--bg-sidebar);
+  backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+  border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; transition: transform 0.3s;
+}
+.sidebar-header { padding: 1.35rem 1.15rem 0.85rem; display: flex; align-items: center; gap: 0.7rem; }
+.sidebar-header .logo {
+  width: 34px; height: 34px; background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.sidebar-header h2 { font-size: 1.1rem; font-weight: 700; }
+.nav-list { flex: 1; padding: 0.4rem 0.65rem; list-style: none; overflow-y: auto; }
+.nav-item {
+  display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.95rem;
+  border-radius: 11px; margin-bottom: 0.2rem; color: var(--text-muted);
+  transition: all var(--transition); font-weight: 500; font-size: 0.92rem;
+}
+.nav-item:hover { background: var(--bg-card); color: var(--text); }
+.nav-item.active { background: rgba(var(--accent-rgb), 0.22); color: var(--accent); }
+.nav-item svg { width: 19px; height: 19px; flex-shrink: 0; }
+.sidebar-footer { padding: 0.7rem 1.15rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); opacity: 0.65; }
+
+.main { flex: 1; margin-left: 250px; min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  position: sticky; top: 0; z-index: 50; padding: 0.9rem 1.5rem;
+  background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+}
+[data-theme="light"] .topbar { background: rgba(255,255,255,0.7); }
+.topbar h1 { font-size: 1.25rem; font-weight: 700; }
+.topbar-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.menu-toggle { display: none; padding: 0.45rem; border-radius: 8px; }
+.menu-toggle:hover { background: var(--bg-card); }
+
+.content { flex: 1; padding: 1.35rem 1.5rem 2.75rem; max-width: 1320px; width: 100%; margin: 0 auto; }
+.view { display: none; animation: fadeIn 0.22s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Semester switch */
+.semester-bar {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap;
+}
+.semester-pill {
+  padding: 0.45rem 1rem; border-radius: 999px; font-size: 0.875rem; font-weight: 600;
+  background: var(--bg-card); border: 1px solid var(--border); transition: all 0.15s;
+}
+.semester-pill:hover { background: var(--bg-card-hover); }
+.semester-pill.active {
+  background: rgba(var(--accent-rgb), 0.25); border-color: var(--accent); color: var(--accent);
+}
+
+/* Cards */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.9rem; margin-bottom: 1.5rem; }
+.stat-card {
+  background: var(--bg-card); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 1.15rem;
+  transition: all var(--transition); box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.stat-card:hover { background: var(--bg-card-hover); transform: translateY(-2px); }
+.stat-card .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-card .value { font-size: 1.6rem; font-weight: 700; }
+.stat-card .sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+.section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.9rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.card {
+  background: var(--bg-card); backdrop-filter: blur(14px); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.15rem; margin-bottom: 1.1rem;
+}
+.subject-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; }
+.subject-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.15rem; cursor: pointer; transition: all var(--transition); position: relative; overflow: hidden;
+}
+.subject-card:hover { background: var(--bg-card-hover); transform: translateY(-3px); box-shadow: var(--shadow); }
+.subject-card .color-bar { position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+.subject-card .name { font-weight: 600; font-size: 1.02rem; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.4rem; }
+.subject-card .avg { font-size: 1.45rem; font-weight: 700; margin: 0.4rem 0; }
+.subject-card .meta { font-size: 0.78rem; color: var(--text-muted); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1rem;
+  border-radius: 10px; font-weight: 500; font-size: 0.875rem; transition: all var(--transition);
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-secondary { background: var(--bg-card); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--bg-card-hover); }
+.btn-danger { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+.btn-ghost { color: var(--text-muted); }
+.btn-ghost:hover { color: var(--text); background: var(--bg-card); }
+.btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 8px; }
+.btn-icon { padding: 0.45rem; border-radius: 8px; }
+.btn-icon:hover { background: var(--bg-card); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+th, td { padding: 0.75rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: rgba(0,0,0,0.14); font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+[data-theme="light"] th { background: rgba(0,0,0,0.03); }
+tr:hover td { background: rgba(255,255,255,0.03); }
+.grade-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2.1rem; height: 2.1rem; border-radius: 8px; font-weight: 700; font-size: 0.9rem;
+}
+.color-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 0.35rem; }
+.tag {
+  display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600;
+  background: rgba(var(--accent-rgb), 0.15); color: var(--accent);
+}
+.tag.exam { background: rgba(239,68,68,0.15); color: #f87171; }
+
+/* Forms & Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(5px);
+  z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem;
+  opacity: 0; visibility: hidden; transition: all 0.22s;
+}
+.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal {
+  background: #1e293b; border: 1px solid var(--border); border-radius: 18px;
+  width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow);
+  transform: scale(0.96); transition: transform 0.22s;
+}
+[data-theme="light"] .modal { background: #fff; }
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-header { padding: 1.15rem 1.35rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-header h3 { font-size: 1.1rem; font-weight: 600; }
+.modal-body { padding: 1.35rem; }
+.modal-footer { padding: 0.9rem 1.35rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.65rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 0.35rem; color: var(--text-secondary); }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 0.65rem 0.85rem; background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.92rem; outline: none;
+}
+[data-theme="light"] .form-group input,
+[data-theme="light"] .form-group select,
+[data-theme="light"] .form-group textarea { background: rgba(0,0,0,0.03); }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+.form-group textarea { min-height: 72px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+.form-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem; }
+.color-picker-row { display: flex; gap: 0.4rem; flex-wrap: wrap; max-height: 110px; overflow-y: auto; }
+.color-swatch {
+  width: 28px; height: 28px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; flex-shrink: 0;
+  transition: transform 0.12s;
+}
+.color-swatch:hover { transform: scale(1.12); }
+.color-swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+
+/* Category toggle */
+.cat-toggle {
+  display: flex; gap: 0.4rem; background: rgba(0,0,0,0.15); border-radius: 10px; padding: 0.25rem;
+}
+.cat-toggle button {
+  flex: 1; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500;
+  color: var(--text-muted); transition: all 0.15s;
+}
+.cat-toggle button.active { background: var(--accent); color: #fff; }
+
+/* Slider */
+.slider-row { margin: 1rem 0; }
+.slider-row label { display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: 0.875rem; }
+input[type="range"] {
+  width: 100%; height: 6px; border-radius: 3px; appearance: none; background: rgba(255,255,255,0.15); outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer;
+}
+
+/* Empty */
+.empty-state { text-align: center; padding: 2.5rem 1.25rem; color: var(--text-muted); }
+.empty-state h3 { font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 0.4rem; }
+.empty-state p { font-size: 0.88rem; margin-bottom: 1.1rem; }
+
+/* Filters */
+.filters { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.1rem; align-items: center; }
+.filters input, .filters select {
+  padding: 0.5rem 0.8rem; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 9px; color: var(--text); font-size: 0.85rem; outline: none;
+}
+.filters input { min-width: 160px; }
+
+/* Toast */
+.toast-container { position: fixed; bottom: 1.35rem; right: 1.35rem; z-index: 2000; display: flex; flex-direction: column; gap: 0.45rem; }
+.toast {
+  padding: 0.8rem 1.15rem; background: #1e293b; border: 1px solid var(--border);
+  border-radius: 11px; box-shadow: var(--shadow); font-size: 0.875rem;
+  animation: slideIn 0.28s ease; max-width: 340px;
+}
+[data-theme="light"] .toast { background: #fff; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+.toast.info { border-left: 3px solid var(--accent); }
+
+/* Calendar */
+.calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.1rem; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; }
+.cal-day-name { text-align: center; font-size: 0.72rem; color: var(--text-muted); padding: 0.4rem; font-weight: 600; }
+.cal-day {
+  aspect-ratio: 1; border-radius: 9px; padding: 0.3rem; background: var(--bg-card);
+  border: 1px solid transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-size: 0.82rem;
+}
+.cal-day:hover { border-color: var(--accent); }
+.cal-day.other { opacity: 0.35; }
+.cal-day.today { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.15); }
+.cal-day .day-num { font-weight: 600; }
+.cal-event { width: 100%; height: 3px; border-radius: 2px; margin-top: 2px; }
+
+/* Charts */
+.chart-bars { display: flex; align-items: flex-end; gap: 0.45rem; height: 150px; padding-top: 0.75rem; }
+.chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.chart-bar { width: 100%; max-width: 36px; border-radius: 5px 5px 0 0; transition: height 0.35s; }
+.chart-bar-label { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.35rem; text-align: center; }
+
+/* Settings */
+.settings-section { margin-bottom: 1.75rem; }
+.settings-section h3 { font-size: 0.98rem; font-weight: 600; margin-bottom: 0.85rem; padding-bottom: 0.45rem; border-bottom: 1px solid var(--border); }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0; }
+.toggle {
+  width: 46px; height: 26px; background: rgba(255,255,255,0.14); border-radius: 13px;
+  position: relative; cursor: pointer; transition: background 0.2s;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: ''; position: absolute; width: 20px; height: 20px; background: #fff;
+  border-radius: 50%; top: 3px; left: 3px; transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(20px); }
+
+.bg-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 0.5rem; }
+.bg-preset {
+  height: 48px; border-radius: 10px; cursor: pointer; border: 2px solid transparent;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.bg-preset:hover { transform: scale(1.04); }
+.bg-preset.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.sim-box {
+  background: rgba(var(--accent-rgb), 0.08); border: 1px dashed rgba(var(--accent-rgb), 0.4);
+  border-radius: var(--radius); padding: 1.15rem; margin-top: 1rem;
+}
+.sim-box h4 { font-size: 0.92rem; margin-bottom: 0.7rem; color: var(--accent); }
+
+.g1 { background: rgba(34,197,94,0.2); color: #4ade80; }
+.g2 { background: rgba(132,204,22,0.2); color: #a3e635; }
+.g3 { background: rgba(234,179,8,0.2); color: #facc15; }
+.g4 { background: rgba(249,115,22,0.2); color: #fb923c; }
+.g5 { background: rgba(239,68,68,0.2); color: #f87171; }
+.g6 { background: rgba(185,28,28,0.25); color: #f87171; }
+
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay.open { display: block; }
+  .main { margin-left: 0; }
+  .menu-toggle { display: flex; }
+  .form-row { grid-template-columns: 1fr; }
+  .content { padding: 1rem; }
+  .topbar { padding: 0.8rem 1rem; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  .subject-cards { grid-template-columns: 1fr; }
+}
+@media print {
+  .sidebar, .topbar, .btn, .filters, .modal-overlay, .toast-container, .semester-bar { display: none !important; }
+  .main { margin-left: 0; }
+  body { background: #fff; color: #000; }
+}
+</style>
+</head>
+<body>
+<div id="login-screen">
+  <div class="login-card">
+    <div style="width:54px;height:54px;margin:0 auto 1.15rem;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;">N</div>
+    <h1>NotenManager</h1>
+    <p>Persönliche Schulnotenverwaltung</p>
+    <div class="login-input-wrap">
+      <input type="password" id="login-pw" placeholder="Passwort eingeben" autocomplete="current-password">
+      <button type="button" class="toggle-pw" id="toggle-login-pw" title="Anzeigen">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <button class="login-btn" id="login-btn">Anmelden</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">N</div>
+      <h2>NotenManager</h2>
+    </div>
+    <ul class="nav-list">
+      <li><a href="#" class="nav-item active" data-view="dashboard">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="grades">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        Notenübersicht
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="provisional">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Vorläufige Noten
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="subjects">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        Fächer
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="calendar">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Kalender
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="stats">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        Statistiken
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="settings">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Einstellungen
+      </a></li>
+    </ul>
+    <div class="sidebar-footer">NotenManager</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:0.65rem;">
+        <button class="menu-toggle btn-icon" id="menu-toggle" aria-label="Menü">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <h1 id="page-title">Dashboard</h1>
+      </div>
+      <div class="topbar-actions"></div>
+    </header>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Titel</h3>
+      <button class="btn-icon" id="modal-close" aria-label="Schließen">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const DEFAULT_PASSWORD = '28-noten_sxschx';
+const STORAGE_KEY = 'notenmanager_v2';
+
+const PRESET_COLORS = [
+  '#3b82f6','#2563eb','#1d4ed8','#60a5fa','#8b5cf6','#7c3aed','#a78bfa','#c084fc',
+  '#ec4899','#db2777','#f472b6','#ef4444','#dc2626','#f87171','#f97316','#ea580c',
+  '#fb923c','#eab308','#ca8a04','#facc15','#22c55e','#16a34a','#4ade80','#14b8a6',
+  '#0d9488','#2dd4bf','#06b6d4','#0891b2','#22d3ee','#6366f1','#4f46e5','#818cf8',
+  '#64748b','#475569','#94a3b8','#a855f7','#d946ef','#f43f5e'
+];
+
+const BG_PRESETS = [
+  { id: 'blue', name: 'Blau', css: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 45%, #1e40af 100%)' },
+  { id: 'purple', name: 'Lila', css: 'linear-gradient(135deg, #1a1025 0%, #3b1d5c 45%, #6d28d9 100%)' },
+  { id: 'teal', name: 'Türkis', css: 'linear-gradient(135deg, #0c1a1a 0%, #134e4a 45%, #0f766e 100%)' },
+  { id: 'rose', name: 'Rosa', css: 'linear-gradient(135deg, #1a0a12 0%, #4c1d3a 45%, #be185d 100%)' },
+  { id: 'slate', name: 'Grau', css: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)' },
+  { id: 'green', name: 'Grün', css: 'linear-gradient(135deg, #0a1a0f 0%, #14532d 45%, #15803d 100%)' },
+  { id: 'orange', name: 'Orange', css: 'linear-gradient(135deg, #1a1008 0%, #7c2d12 45%, #c2410c 100%)' },
+  { id: 'midnight', name: 'Nacht', css: 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%)' },
+];
+
+const $ = (s, c=document) => c.querySelector(s);
+const $$ = (s, c=document) => [...c.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+function formatDate(d) {
+  if (!d) return '–';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(date)) return '–';
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function parseGrade(str) {
+  if (str == null || str === '') return null;
+  str = String(str).trim().replace(',', '.');
+  let base = parseFloat(str);
+  if (isNaN(base)) return null;
+  if (str.endsWith('+')) base -= 0.25;
+  else if (str.endsWith('-')) base += 0.25;
+  return Math.max(0.75, Math.min(6.25, base));
+}
+
+function displayGrade(val) {
+  if (val == null) return '–';
+  const n = Number(val);
+  if (isNaN(n)) return '–';
+  const rounded = Math.round(n * 4) / 4;
+  const int = Math.floor(rounded);
+  const frac = rounded - int;
+  if (Math.abs(frac) < 0.01) return String(int);
+  if (Math.abs(frac - 0.25) < 0.01) return int + '+';
+  if (Math.abs(frac - 0.75) < 0.01) return (int + 1) + '-';
+  if (Math.abs(frac - 0.5) < 0.01) return int + ',5';
+  return n.toFixed(2).replace('.', ',');
+}
+
+function gradeClass(val) {
+  if (val == null) return '';
+  const n = Math.round(Number(val));
+  if (n <= 1) return 'g1'; if (n === 2) return 'g2'; if (n === 3) return 'g3';
+  if (n === 4) return 'g4'; if (n === 5) return 'g5'; return 'g6';
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('#toast-container').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 280); }, 3000);
+}
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ========== STATE ==========
+let state = {
+  subjects: [],
+  grades: [],
+  provisional: [],
+  settings: {
+    passwordHash: null,
+    passwordEnabled: true,
+    theme: 'dark',
+    accent: '#3b82f6',
+    decimalPlaces: 2,
+    weightExam: 30,      // % Klassenarbeiten
+    weightOther: 70,     // % sonstige Noten
+    activeSemester: 1,   // 1 oder 2
+    bgPreset: 'blue',
+    customBg: null       // data-URL
+  },
+  calendarMonth: new Date().getMonth(),
+  calendarYear: new Date().getFullYear()
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      state.subjects = data.subjects || [];
+      state.grades = (data.grades || []).map(g => ({
+        ...g,
+        // Migration: alte weight-Noten → category
+        category: g.category || (g.type === 'Klassenarbeit' ? 'klassenarbeit' : 'sonstige'),
+        semester: g.semester || 1
+      }));
+      state.provisional = (data.provisional || []).map(p => ({
+        ...p,
+        category: p.category || (p.type === 'Klassenarbeit' ? 'klassenarbeit' : 'sonstige'),
+        semester: p.semester || 1
+      }));
+      state.settings = { ...state.settings, ...(data.settings || {}) };
+      if (state.settings.weightExam == null) state.settings.weightExam = 30;
+      if (state.settings.weightOther == null) state.settings.weightOther = 70;
+      if (!state.settings.activeSemester) state.settings.activeSemester = 1;
+    }
+  } catch (e) { console.error(e); }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      subjects: state.subjects,
+      grades: state.grades,
+      provisional: state.provisional,
+      settings: state.settings
+    }));
+  } catch (e) { toast('Speichern fehlgeschlagen', 'error'); }
+}
+
+// ========== BERECHNUNG (70/30) ==========
+function simpleAvg(grades) {
+  if (!grades || !grades.length) return null;
+  return grades.reduce((s, g) => s + Number(g.value), 0) / grades.length;
+}
+
+/** Halbjahres-Durchschnitt: Klassenarbeiten × p% + Sonstige × (100-p)% */
+function calcAverage(grades) {
+  if (!grades || !grades.length) return null;
+  const exams = grades.filter(g => g.category === 'klassenarbeit');
+  const others = grades.filter(g => g.category !== 'klassenarbeit');
+  const avgE = simpleAvg(exams);
+  const avgO = simpleAvg(others);
+  const pE = (state.settings.weightExam ?? 30) / 100;
+  const pO = (state.settings.weightOther ?? 70) / 100;
+
+  if (avgE != null && avgO != null) return avgE * pE + avgO * pO;
+  if (avgE != null) return avgE;
+  if (avgO != null) return avgO;
+  return null;
+}
+
+function formatAvg(avg) {
+  if (avg == null) return '–';
+  const places = state.settings.decimalPlaces ?? 2;
+  return avg.toFixed(places).replace('.', ',');
+}
+
+function getSubjectGrades(subjectId, semester = null) {
+  const sem = semester ?? state.settings.activeSemester;
+  return state.grades.filter(g => g.subjectId === subjectId && (g.semester || 1) === sem);
+}
+
+function overallAverage(semester = null) {
+  const avgs = state.subjects
+    .map(s => calcAverage(getSubjectGrades(s.id, semester)))
+    .filter(a => a != null);
+  if (!avgs.length) return null;
+  return avgs.reduce((a, b) => a + b, 0) / avgs.length;
+}
+
+function semesterLabel(s) {
+  return s === 2 ? '2. Halbjahr' : '1. Halbjahr';
+}
+
+// ========== THEME / BG ==========
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.settings.theme === 'light' ? 'light' : 'dark');
+}
+function applyAccent() {
+  const c = state.settings.accent || '#3b82f6';
+  document.documentElement.style.setProperty('--accent', c);
+  const hex = c.replace('#','');
+  const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+  document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+}
+function applyBackground() {
+  if (state.settings.customBg) {
+    document.body.style.background = `center/cover no-repeat url(${state.settings.customBg})`;
+    document.documentElement.style.setProperty('--bg-main', 'transparent');
+  } else {
+    const preset = BG_PRESETS.find(p => p.id === state.settings.bgPreset) || BG_PRESETS[0];
+    document.body.style.background = preset.css;
+    document.body.style.backgroundAttachment = 'fixed';
+    document.documentElement.style.setProperty('--bg-main', preset.css);
+  }
+}
+
+// ========== MODAL ==========
+function openModal(title, body, footer) {
+  $('#modal-title').textContent = title;
+  $('#modal-body').innerHTML = body;
+  $('#modal-footer').innerHTML = footer || '';
+  $('#modal-overlay').classList.add('open');
+}
+function closeModal() { $('#modal-overlay').classList.remove('open'); }
+$('#modal-close').addEventListener('click', closeModal);
+$('#modal-overlay').addEventListener('click', e => { if (e.target === $('#modal-overlay')) closeModal(); });
+
+// ========== NAV ==========
+const VIEW_TITLES = {
+  dashboard: 'Dashboard', grades: 'Notenübersicht', provisional: 'Vorläufige Noten',
+  subjects: 'Fächer', calendar: 'Kalender', stats: 'Statistiken', settings: 'Einstellungen', subjectDetail: 'Fach'
+};
+const views = {};
+
+let currentViewParams = {};
+function navigate(view, params = {}) {
+  currentViewParams = params || {};
+  $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+  $('#page-title').textContent = VIEW_TITLES[view] || view;
+  const content = $('#content');
+  content.innerHTML = '';
+  if (views[view]) views[view](content, params);
+  $('#sidebar').classList.remove('open');
+  $('#sidebar-overlay').classList.remove('open');
+}
+
+$$('.nav-item').forEach(item => {
+  item.addEventListener('click', e => { e.preventDefault(); navigate(item.dataset.view); });
+});
+$('#menu-toggle').addEventListener('click', () => {
+  $('#sidebar').classList.toggle('open');
+  $('#sidebar-overlay').classList.toggle('open');
+});
+$('#sidebar-overlay').addEventListener('click', () => {
+  $('#sidebar').classList.remove('open');
+  $('#sidebar-overlay').classList.remove('open');
+});
+
+function semesterBarHtml() {
+  const s = state.settings.activeSemester;
+  return `<div class="semester-bar">
+    <button class="semester-pill ${s===1?'active':''}" onclick="setSemester(1)">1. Halbjahr</button>
+    <button class="semester-pill ${s===2?'active':''}" onclick="setSemester(2)">2. Halbjahr</button>
+  </div>`;
+}
+function setSemester(n) {
+  state.settings.activeSemester = n;
+  saveState();
+  const current = $$('.nav-item.active')[0]?.dataset.view || 'dashboard';
+  // subjectDetail needs id – fall back
+  if (current === 'subjectDetail') navigate('subjects');
+  else navigate(current);
+}
+window.setSemester = setSemester;
+
+// ========== VIEWS ==========
+views.dashboard = (el) => {
+  const sem = state.settings.activeSemester;
+  const overall = overallAverage(sem);
+  const upcoming = state.provisional
+    .filter(p => (p.semester||1) === sem && p.date && new Date(p.date) >= new Date(new Date().toDateString()))
+    .sort((a,b) => new Date(a.date) - new Date(b.date)).slice(0, 5);
+  const recent = state.grades
+    .filter(g => (g.semester||1) === sem)
+    .sort((a,b) => new Date(b.updated||b.date) - new Date(a.updated||a.date)).slice(0, 5);
+  const gradeCount = state.grades.filter(g => (g.semester||1) === sem).length;
+  const provCount = state.provisional.filter(p => (p.semester||1) === sem).length;
+
+  el.innerHTML = `
+    ${semesterBarHtml()}
+    <div class="cards-grid">
+      <div class="stat-card"><div class="label">Durchschnitt ${semesterLabel(sem)}</div><div class="value">${overall!=null?formatAvg(overall):'–'}</div></div>
+      <div class="stat-card"><div class="label">Fächer</div><div class="value">${state.subjects.length}</div></div>
+      <div class="stat-card"><div class="label">Noten</div><div class="value">${gradeCount}</div></div>
+      <div class="stat-card"><div class="label">Vorläufig</div><div class="value">${provCount}</div></div>
+      <div class="stat-card"><div class="label">Anstehend</div><div class="value">${upcoming.length}</div></div>
+    </div>
+    <div class="section-title"><span>Fächer</span>
+      <button class="btn btn-primary btn-sm" onclick="openSubjectModal()">+ Fach</button>
+    </div>
+    <div class="subject-cards">
+      ${state.subjects.length === 0 ? `
+        <div class="empty-state" style="grid-column:1/-1">
+          <h3>Noch keine Fächer</h3>
+          <p>Lege dein erstes Fach an.</p>
+          <button class="btn btn-primary" onclick="openSubjectModal()">Fach hinzufügen</button>
+        </div>` : state.subjects.map(s => {
+        const grades = getSubjectGrades(s.id, sem);
+        const avg = calcAverage(grades);
+        return `<div class="subject-card" onclick="navigate('subjectDetail',{id:'${s.id}'})">
+          <div class="color-bar" style="background:${s.color}"></div>
+          <div class="name">${s.emoji||''} ${escapeHtml(s.name)} ${s.favorite?'★':''}</div>
+          <div class="avg" style="color:${s.color}">${avg!=null?formatAvg(avg):'–'}</div>
+          <div class="meta">${grades.length} Note${grades.length!==1?'n':''}${s.short?' · '+escapeHtml(s.short):''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;margin-top:1.35rem" class="dash-two">
+      <div class="card">
+        <div class="section-title"><span>Letzte Noten</span></div>
+        ${recent.length===0?'<div class="empty-state" style="padding:1.2rem"><p>Noch keine Noten</p></div>':
+          `<div class="table-wrap"><table><thead><tr><th>Fach</th><th>Note</th><th>Titel</th></tr></thead><tbody>
+          ${recent.map(g=>{const sub=state.subjects.find(s=>s.id===g.subjectId);
+            return `<tr><td><span class="color-dot" style="background:${sub?.color||'#888'}"></span>${escapeHtml(sub?.name||'?')}</td>
+            <td><span class="grade-badge ${gradeClass(g.value)}">${displayGrade(g.value)}</span></td>
+            <td>${escapeHtml(g.title||'–')}</td></tr>`;}).join('')}
+          </tbody></table></div>`}
+      </div>
+      <div class="card">
+        <div class="section-title"><span>Anstehende Prüfungen</span></div>
+        ${upcoming.length===0?'<div class="empty-state" style="padding:1.2rem"><p>Keine Termine</p></div>':
+          `<div class="table-wrap"><table><thead><tr><th>Fach</th><th>Titel</th><th>Datum</th></tr></thead><tbody>
+          ${upcoming.map(p=>{const sub=state.subjects.find(s=>s.id===p.subjectId);
+            return `<tr><td><span class="color-dot" style="background:${sub?.color||'#888'}"></span>${escapeHtml(sub?.name||'?')}</td>
+            <td>${escapeHtml(p.title||'–')}</td><td>${formatDate(p.date)}</td></tr>`;}).join('')}
+          </tbody></table></div>`}
+      </div>
+    </div>
+    <style>@media(max-width:700px){.dash-two{grid-template-columns:1fr!important}}</style>
+    <div class="card" style="margin-top:1.1rem">
+      <div class="section-title"><span>Schnellaktionen</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.65rem">
+        <button class="btn btn-primary" onclick="openSubjectModal()">Fach hinzufügen</button>
+        <button class="btn btn-secondary" onclick="openGradeModal()">Note hinzufügen</button>
+        <button class="btn btn-secondary" onclick="openProvisionalModal()">Vorläufige Note</button>
+      </div>
+    </div>
+  `;
+};
+
+views.grades = (el, params = {}) => {
+  const sem = state.settings.activeSemester;
+  const subjectId = params.subjectId || null;
+
+  // Detail: Noten eines Fachs
+  if (subjectId) {
+    const s = state.subjects.find(x => x.id === subjectId);
+    if (!s) { navigate('grades'); return; }
+    const list = state.grades
+      .filter(g => g.subjectId === subjectId && (g.semester || 1) === sem)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    const avg = calcAverage(list);
+
+    el.innerHTML = `
+      ${semesterBarHtml()}
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.15rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="navigate('grades')">← Alle Fächer</button>
+        <div style="width:12px;height:12px;border-radius:50%;background:${s.color}"></div>
+        <h2 style="font-size:1.2rem;font-weight:700">${s.emoji || ''} ${escapeHtml(s.name)}</h2>
+        <span style="color:var(--text-muted);font-size:0.9rem">${avg != null ? 'Ø ' + formatAvg(avg) : 'Keine Noten'}</span>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openGradeModal(null,'${s.id}')">+ Note</button>
+      </div>
+      ${list.length === 0 ? `<div class="empty-state"><h3>Keine Noten</h3>
+        <p>Für ${escapeHtml(s.name)} im ${semesterLabel(sem)} sind noch keine Noten eingetragen.</p>
+        <button class="btn btn-primary" onclick="openGradeModal(null,'${s.id}')">Note hinzufügen</button></div>` :
+        `<div class="table-wrap"><table>
+          <thead><tr><th>Note</th><th>Titel</th><th>Art</th><th>Datum</th><th>Kommentar</th><th></th></tr></thead>
+          <tbody>${list.map(g => {
+            const isExam = g.category === 'klassenarbeit';
+            return `<tr>
+              <td><span class="grade-badge ${gradeClass(g.value)}">${displayGrade(g.value)}</span></td>
+              <td>${escapeHtml(g.title || '–')}</td>
+              <td><span class="tag ${isExam ? 'exam' : ''}">${isExam ? 'Klassenarbeit' : 'Sonstige'}</span></td>
+              <td>${formatDate(g.date)}</td>
+              <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(g.comment || '')}</td>
+              <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick="openGradeModal('${g.id}')">Bearbeiten</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteGrade('${g.id}')">Löschen</button>
+              </td>
+            </tr>`;
+          }).join('')}</tbody></table></div>`}
+    `;
+    return;
+  }
+
+  // Übersicht: Fächerliste
+  el.innerHTML = `
+    ${semesterBarHtml()}
+    <div class="section-title"><span>Noten nach Fach</span></div>
+    ${state.subjects.length === 0 ? `<div class="empty-state">
+      <h3>Noch keine Fächer</h3>
+      <p>Lege zuerst Fächer an, um Noten einzutragen.</p>
+      <button class="btn btn-primary" onclick="openSubjectModal()">Fach hinzufügen</button>
+    </div>` : `<div class="subject-cards">
+      ${state.subjects.map(s => {
+        const grades = getSubjectGrades(s.id, sem);
+        const avg = calcAverage(grades);
+        return `<div class="subject-card" onclick="navigate('grades',{subjectId:'${s.id}'})">
+          <div class="color-bar" style="background:${s.color}"></div>
+          <div class="name">${s.emoji || ''} ${escapeHtml(s.name)}</div>
+          <div class="avg" style="color:${s.color}">${avg != null ? formatAvg(avg) : '–'}</div>
+          <div class="meta">${grades.length} Note${grades.length !== 1 ? 'n' : ''} · ${semesterLabel(sem)}</div>
+        </div>`;
+      }).join('')}
+    </div>`}
+  `;
+};
+
+views.provisional = (el, params = {}) => {
+  const sem = state.settings.activeSemester;
+  const subjectId = params.subjectId || null;
+
+  if (subjectId) {
+    const s = state.subjects.find(x => x.id === subjectId);
+    if (!s) { navigate('provisional'); return; }
+    const list = state.provisional
+      .filter(p => p.subjectId === subjectId && (p.semester || 1) === sem)
+      .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+    el.innerHTML = `
+      ${semesterBarHtml()}
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.15rem;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="navigate('provisional')">← Alle Fächer</button>
+        <div style="width:12px;height:12px;border-radius:50%;background:${s.color}"></div>
+        <h2 style="font-size:1.2rem;font-weight:700">${s.emoji || ''} ${escapeHtml(s.name)}</h2>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openProvisionalModal(null,'${s.id}')">+ Vorläufig</button>
+      </div>
+      ${list.length === 0 ? `<div class="empty-state"><h3>Keine vorläufigen Noten</h3>
+        <p>Für ${escapeHtml(s.name)} im ${semesterLabel(sem)} sind keine vorläufigen Noten eingetragen.</p>
+        <button class="btn btn-primary" onclick="openProvisionalModal(null,'${s.id}')">Hinzufügen</button></div>` :
+        `<div class="table-wrap"><table>
+          <thead><tr><th>Titel</th><th>Art</th><th>Datum</th><th>Erw.</th><th></th></tr></thead>
+          <tbody>${list.map(p => {
+            const isExam = p.category === 'klassenarbeit';
+            return `<tr>
+              <td>${escapeHtml(p.title || '–')}</td>
+              <td><span class="tag ${isExam ? 'exam' : ''}">${isExam ? 'Klassenarbeit' : 'Sonstige'}</span></td>
+              <td>${formatDate(p.date)}</td>
+              <td>${p.expectedGrade != null ? displayGrade(p.expectedGrade) : '–'}</td>
+              <td style="white-space:nowrap">
+                <button class="btn btn-primary btn-sm" onclick="confirmProvisional('${p.id}')">Bestätigen</button>
+                <button class="btn btn-ghost btn-sm" onclick="openProvisionalModal('${p.id}')">Bearbeiten</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProvisional('${p.id}')">Löschen</button>
+              </td>
+            </tr>`;
+          }).join('')}</tbody></table></div>`}
+    `;
+    return;
+  }
+
+  el.innerHTML = `
+    ${semesterBarHtml()}
+    <div class="section-title"><span>Vorläufige Noten nach Fach</span></div>
+    ${state.subjects.length === 0 ? `<div class="empty-state">
+      <h3>Noch keine Fächer</h3>
+      <p>Lege zuerst Fächer an.</p>
+      <button class="btn btn-primary" onclick="openSubjectModal()">Fach hinzufügen</button>
+    </div>` : `<div class="subject-cards">
+      ${state.subjects.map(s => {
+        const list = state.provisional.filter(p => p.subjectId === s.id && (p.semester || 1) === sem);
+        return `<div class="subject-card" onclick="navigate('provisional',{subjectId:'${s.id}'})">
+          <div class="color-bar" style="background:${s.color}"></div>
+          <div class="name">${s.emoji || ''} ${escapeHtml(s.name)}</div>
+          <div class="avg" style="color:${s.color};font-size:1.2rem">${list.length}</div>
+          <div class="meta">vorläufige Note${list.length !== 1 ? 'n' : ''} · ${semesterLabel(sem)}</div>
+        </div>`;
+      }).join('')}
+    </div>`}
+  `;
+};
+
+views.subjects = (el) => {
+  const sem = state.settings.activeSemester;
+  el.innerHTML = `
+    ${semesterBarHtml()}
+    <div class="section-title"><span>Alle Fächer</span>
+      <button class="btn btn-primary btn-sm" onclick="openSubjectModal()">+ Fach</button>
+    </div>
+    <div class="subject-cards">
+      ${state.subjects.length===0?`
+        <div class="empty-state" style="grid-column:1/-1">
+          <h3>Noch keine Fächer</h3>
+          <p>Erstelle Fächer, um Noten zuzuordnen.</p>
+          <button class="btn btn-primary" onclick="openSubjectModal()">Erstes Fach anlegen</button>
+        </div>`:state.subjects.map(s=>{
+        const grades=getSubjectGrades(s.id,sem);
+        const avg=calcAverage(grades);
+        return `<div class="subject-card" onclick="navigate('subjectDetail',{id:'${s.id}'})">
+          <div class="color-bar" style="background:${s.color}"></div>
+          <div class="name">${s.emoji||''} ${escapeHtml(s.name)} ${s.favorite?'★':''}</div>
+          <div class="avg" style="color:${s.color}">${avg!=null?formatAvg(avg):'–'}</div>
+          <div class="meta">${grades.length} Note${grades.length!==1?'n':''}${s.short?' · '+escapeHtml(s.short):''}</div>
+          <div style="margin-top:0.65rem;display:flex;gap:0.35rem" onclick="event.stopPropagation()">
+            <button class="btn btn-ghost btn-sm" onclick="openSubjectModal('${s.id}')">Bearbeiten</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSubject('${s.id}')">Löschen</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+};
+
+views.subjectDetail = (el, params) => {
+  const s = state.subjects.find(x => x.id === params.id);
+  if (!s) { el.innerHTML = '<div class="empty-state"><h3>Fach nicht gefunden</h3></div>'; return; }
+  const sem = state.settings.activeSemester;
+  const grades = getSubjectGrades(s.id, sem).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const prov = state.provisional.filter(p => p.subjectId===s.id && (p.semester||1)===sem);
+  const avg = calcAverage(grades);
+  const target = s.targetAverage;
+  const exams = grades.filter(g=>g.category==='klassenarbeit');
+  const others = grades.filter(g=>g.category!=='klassenarbeit');
+  const avgE = simpleAvg(exams);
+  const avgO = simpleAvg(others);
+
+  el.innerHTML = `
+    ${semesterBarHtml()}
+    <div style="display:flex;align-items:center;gap:0.85rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('subjects')">← Zurück</button>
+      <div style="width:14px;height:14px;border-radius:50%;background:${s.color}"></div>
+      <h2 style="font-size:1.4rem;font-weight:700">${s.emoji||''} ${escapeHtml(s.name)}</h2>
+      ${s.short?`<span style="color:var(--text-muted)">${escapeHtml(s.short)}</span>`:''}
+      <button class="btn btn-secondary btn-sm" onclick="openSubjectModal('${s.id}')">Bearbeiten</button>
+    </div>
+    ${s.description?`<p style="color:var(--text-muted);margin-bottom:1.1rem">${escapeHtml(s.description)}</p>`:''}
+
+    <div class="cards-grid">
+      <div class="stat-card"><div class="label">Durchschnitt</div><div class="value" style="color:${s.color}">${avg!=null?formatAvg(avg):'–'}</div>
+        <div class="sub">${state.settings.weightExam}% KA · ${state.settings.weightOther}% Sonstige</div></div>
+      <div class="stat-card"><div class="label">Klassenarbeiten</div><div class="value">${avgE!=null?formatAvg(avgE):'–'}</div>
+        <div class="sub">${exams.length} Note${exams.length!==1?'n':''}</div></div>
+      <div class="stat-card"><div class="label">Sonstige</div><div class="value">${avgO!=null?formatAvg(avgO):'–'}</div>
+        <div class="sub">${others.length} Note${others.length!==1?'n':''}</div></div>
+      ${target!=null?`<div class="stat-card"><div class="label">Ziel</div><div class="value">${formatAvg(target)}</div>
+        <div class="sub">${avg!=null?(avg<=target?'Ziel erreicht ✓':'Noch '+(avg-target).toFixed(2).replace('.',',')+' entfernt'):''}</div></div>`:''}
+    </div>
+
+    <div class="section-title"><span>Noten (${semesterLabel(sem)})</span>
+      <button class="btn btn-primary btn-sm" onclick="openGradeModal(null,'${s.id}')">+ Note</button>
+    </div>
+    ${grades.length===0?'<div class="empty-state" style="padding:1.2rem"><p>Noch keine Noten in diesem Halbjahr</p></div>':
+      `<div class="table-wrap"><table><thead><tr><th>Note</th><th>Titel</th><th>Art</th><th>Datum</th><th></th></tr></thead>
+      <tbody>${grades.map(g=>`<tr>
+        <td><span class="grade-badge ${gradeClass(g.value)}">${displayGrade(g.value)}</span></td>
+        <td>${escapeHtml(g.title||'–')}</td>
+        <td><span class="tag ${g.category==='klassenarbeit'?'exam':''}">${g.category==='klassenarbeit'?'Klassenarbeit':'Sonstige'}</span></td>
+        <td>${formatDate(g.date)}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="openGradeModal('${g.id}')">Bearbeiten</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteGrade('${g.id}')">Löschen</button></td>
+      </tr>`).join('')}</tbody></table></div>`}
+
+    <div class="section-title" style="margin-top:1.35rem"><span>Vorläufige Noten</span>
+      <button class="btn btn-secondary btn-sm" onclick="openProvisionalModal(null,'${s.id}')">+ Vorläufig</button>
+    </div>
+    ${prov.length===0?'<div class="empty-state" style="padding:0.9rem"><p>Keine vorläufigen Noten</p></div>':
+      `<div class="table-wrap"><table><thead><tr><th>Titel</th><th>Datum</th><th>Erw.</th><th></th></tr></thead>
+      <tbody>${prov.map(p=>`<tr>
+        <td>${escapeHtml(p.title||'–')}</td><td>${formatDate(p.date)}</td>
+        <td>${p.expectedGrade!=null?displayGrade(p.expectedGrade):'–'}</td>
+        <td><button class="btn btn-primary btn-sm" onclick="confirmProvisional('${p.id}')">Bestätigen</button>
+            <button class="btn btn-ghost btn-sm" onclick="openProvisionalModal('${p.id}')">Bearbeiten</button></td>
+      </tr>`).join('')}</tbody></table></div>`}
+
+    <div class="sim-box">
+      <h4>Notenprognose (Simulation)</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Simulierte Note</label>
+          <input type="text" id="sim-grade" placeholder="z.B. 2" value="2"></div>
+        <div class="form-group"><label>Art</label>
+          <select id="sim-cat"><option value="sonstige">Sonstige</option><option value="klassenarbeit">Klassenarbeit</option></select></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="sim-calc">Berechnen</button>
+      <div id="sim-result" style="margin-top:0.65rem;font-size:0.92rem"></div>
+    </div>
+
+    <div class="card" style="margin-top:1.1rem">
+      <div class="section-title"><span>Fachnotizen</span></div>
+      <textarea id="subject-notes" rows="3" placeholder="Notizen…">${escapeHtml(s.notes||'')}</textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:0.65rem" id="save-subject-notes">Speichern</button>
+    </div>
+
+    <div class="card" style="margin-top:1.1rem">
+      <div class="section-title"><span>Ziel-Durchschnitt</span></div>
+      <div class="form-row">
+        <div class="form-group"><label>Zielwert</label>
+          <input type="text" id="target-avg" value="${target!=null?String(target).replace('.',','):''}" placeholder="z.B. 2,0"></div>
+      </div>
+      <div style="display:flex;gap:0.45rem;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="save-target">Ziel speichern</button>
+        ${target!=null?'<button class="btn btn-danger btn-sm" id="clear-target">Ziel löschen</button>':''}
+      </div>
+      <div id="target-hint" style="margin-top:0.65rem;font-size:0.88rem;color:var(--text-muted)"></div>
+    </div>
+  `;
+
+  $('#sim-calc')?.addEventListener('click', () => {
+    const simVal = parseGrade($('#sim-grade').value);
+    if (simVal==null) { $('#sim-result').textContent='Ungültige Note'; return; }
+    const cat = $('#sim-cat').value;
+    const all = [...grades, { value: simVal, category: cat }];
+    const newAvg = calcAverage(all);
+    const diff = avg!=null ? newAvg-avg : null;
+    $('#sim-result').innerHTML = `Neuer Durchschnitt: <strong>${formatAvg(newAvg)}</strong>
+      ${diff!=null?`(${diff>=0?'+':''}${diff.toFixed(2).replace('.',',')})`:''}
+      <br><small style="color:var(--text-muted)">Nur Simulation</small>`;
+  });
+  $('#save-subject-notes')?.addEventListener('click', () => {
+    s.notes = $('#subject-notes').value; saveState(); toast('Gespeichert','success');
+  });
+  $('#save-target')?.addEventListener('click', () => {
+    const raw = $('#target-avg').value.trim().replace(',','.');
+    if (!raw) s.targetAverage = null;
+    else {
+      const t = parseFloat(raw);
+      if (isNaN(t)||t<1||t>6) { toast('Ungültig','error'); return; }
+      s.targetAverage = t;
+    }
+    saveState(); toast('Ziel gespeichert','success');
+    navigate('subjectDetail',{id:s.id});
+  });
+  $('#clear-target')?.addEventListener('click', () => {
+    s.targetAverage = null; saveState(); toast('Ziel gelöscht','success');
+    navigate('subjectDetail',{id:s.id});
+  });
+  if (target!=null && avg!=null) {
+    $('#target-hint').innerHTML = avg<=target
+      ? 'Ziel bereits erreicht oder übertroffen.'
+      : `Aktuell ${formatAvg(avg)}, Ziel ${formatAvg(target)} – Differenz ${(avg-target).toFixed(2).replace('.',',')}.`;
+  }
+};
+
+views.calendar = (el) => {
+  let month = state.calendarMonth, year = state.calendarYear;
+  const render = () => {
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month+1, 0);
+    const startDay = (first.getDay()+6)%7;
+    const daysInMonth = last.getDate();
+    const monthName = first.toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+    const events = state.provisional.filter(p => {
+      if (!p.date) return false;
+      const d = new Date(p.date);
+      return d.getMonth()===month && d.getFullYear()===year;
+    });
+    let cells = '';
+    const prevLast = new Date(year, month, 0).getDate();
+    for (let i=startDay-1;i>=0;i--) cells += `<div class="cal-day other"><div class="day-num">${prevLast-i}</div></div>`;
+    const now = new Date();
+    for (let d=1;d<=daysInMonth;d++) {
+      const isToday = d===now.getDate()&&month===now.getMonth()&&year===now.getFullYear();
+      const dayEv = events.filter(e=>new Date(e.date).getDate()===d);
+      cells += `<div class="cal-day ${isToday?'today':''}"><div class="day-num">${d}</div>
+        ${dayEv.map(e=>{const sub=state.subjects.find(s=>s.id===e.subjectId);
+          return `<div class="cal-event" style="background:${sub?.color||'#888'}" title="${escapeHtml(e.title||'')}"></div>`;}).join('')}
+      </div>`;
+    }
+    const total=startDay+daysInMonth, remain=(7-(total%7))%7;
+    for (let i=1;i<=remain;i++) cells+=`<div class="cal-day other"><div class="day-num">${i}</div></div>`;
+
+    el.innerHTML = `
+      <div class="calendar-header">
+        <button class="btn btn-secondary btn-sm" id="cal-prev">‹</button>
+        <h2 style="font-size:1.15rem;font-weight:600;text-transform:capitalize">${monthName}</h2>
+        <button class="btn btn-secondary btn-sm" id="cal-next">›</button>
+      </div>
+      <div class="calendar-grid">
+        ${['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=>`<div class="cal-day-name">${d}</div>`).join('')}
+        ${cells}
+      </div>
+      <div class="card" style="margin-top:1.1rem">
+        <div class="section-title"><span>Termine diesen Monat</span></div>
+        ${events.length===0?'<p style="color:var(--text-muted)">Keine Termine</p>':
+          `<div class="table-wrap"><table><thead><tr><th>Datum</th><th>Fach</th><th>Titel</th><th></th></tr></thead>
+          <tbody>${events.sort((a,b)=>new Date(a.date)-new Date(b.date)).map(e=>{
+            const sub=state.subjects.find(s=>s.id===e.subjectId);
+            return `<tr><td>${formatDate(e.date)}</td>
+              <td><span class="color-dot" style="background:${sub?.color||'#888'}"></span>${escapeHtml(sub?.name||'?')}</td>
+              <td>${escapeHtml(e.title||'–')}</td>
+              <td><button class="btn btn-ghost btn-sm" onclick="openProvisionalModal('${e.id}')">Details</button></td></tr>`;
+          }).join('')}</tbody></table></div>`}
+      </div>
+    `;
+    $('#cal-prev').onclick=()=>{month--;if(month<0){month=11;year--;}state.calendarMonth=month;state.calendarYear=year;render();};
+    $('#cal-next').onclick=()=>{month++;if(month>11){month=0;year++;}state.calendarMonth=month;state.calendarYear=year;render();};
+  };
+  render();
+};
+
+views.stats = (el) => {
+  const sem = state.settings.activeSemester;
+  const overall = overallAverage(sem);
+  const bySubject = state.subjects.map(s => ({
+    name: s.name, color: s.color,
+    avg: calcAverage(getSubjectGrades(s.id, sem)),
+    count: getSubjectGrades(s.id, sem).length
+  })).filter(x => x.count > 0);
+
+  const gradesSem = state.grades.filter(g => (g.semester||1)===sem);
+  const dist = [0,0,0,0,0,0];
+  gradesSem.forEach(g => { const n=Math.min(6,Math.max(1,Math.round(g.value))); dist[n-1]++; });
+  const maxDist = Math.max(...dist, 1);
+  const exams = gradesSem.filter(g=>g.category==='klassenarbeit');
+  const others = gradesSem.filter(g=>g.category!=='klassenarbeit');
+
+  el.innerHTML = `
+    ${semesterBarHtml()}
+    <div class="cards-grid">
+      <div class="stat-card"><div class="label">Gesamtdurchschnitt</div><div class="value">${overall!=null?formatAvg(overall):'–'}</div></div>
+      <div class="stat-card"><div class="label">Noten</div><div class="value">${gradesSem.length}</div></div>
+      <div class="stat-card"><div class="label">Klassenarbeiten Ø</div><div class="value">${simpleAvg(exams)!=null?formatAvg(simpleAvg(exams)):'–'}</div>
+        <div class="sub">${exams.length} Stück</div></div>
+      <div class="stat-card"><div class="label">Sonstige Ø</div><div class="value">${simpleAvg(others)!=null?formatAvg(simpleAvg(others)):'–'}</div>
+        <div class="sub">${others.length} Stück</div></div>
+    </div>
+    <div class="card">
+      <div class="section-title"><span>Durchschnitt pro Fach</span></div>
+      ${bySubject.length===0?'<div class="empty-state"><p>Noch keine Daten</p></div>':
+        `<div class="table-wrap"><table><thead><tr><th>Fach</th><th>Durchschnitt</th><th>Noten</th></tr></thead>
+        <tbody>${bySubject.map(s=>`<tr>
+          <td><span class="color-dot" style="background:${s.color}"></span>${escapeHtml(s.name)}</td>
+          <td><strong>${s.avg!=null?formatAvg(s.avg):'–'}</strong></td><td>${s.count}</td>
+        </tr>`).join('')}</tbody></table></div>`}
+    </div>
+    <div class="card">
+      <div class="section-title"><span>Notenverteilung</span></div>
+      ${gradesSem.length===0?'<div class="empty-state"><p>Noch keine Noten</p></div>':
+        `<div class="chart-bars">${dist.map((c,i)=>`
+          <div class="chart-bar-wrap">
+            <div class="chart-bar" style="height:${(c/maxDist)*100}%;background:${['#22c55e','#84cc16','#eab308','#f97316','#ef4444','#b91c1c'][i]}"></div>
+            <div class="chart-bar-label">${i+1}<br><small>${c}</small></div>
+          </div>`).join('')}</div>`}
+    </div>
+  `;
+};
+
+views.settings = (el) => {
+  const we = state.settings.weightExam ?? 30;
+  const wo = state.settings.weightOther ?? 70;
+  el.innerHTML = `
+    <div class="settings-section">
+      <h3>Design</h3>
+      <div class="toggle-row"><span>Dunkelmodus</span>
+        <div class="toggle ${state.settings.theme==='dark'?'on':''}" id="toggle-theme"></div>
+      </div>
+      <div class="form-group" style="margin-top:0.9rem"><label>Akzentfarbe</label>
+        <div class="color-picker-row" id="accent-colors">
+          ${PRESET_COLORS.map(c=>`<div class="color-swatch ${state.settings.accent===c?'selected':''}" style="background:${c}" data-color="${c}"></div>`).join('')}
+        </div>
+      </div>
+      <div class="form-group"><label>Hintergrund</label>
+        <div class="bg-presets" id="bg-presets">
+          ${BG_PRESETS.map(p=>`<div class="bg-preset ${state.settings.bgPreset===p.id&&!state.settings.customBg?'selected':''}"
+            style="background:${p.css}" data-id="${p.id}" title="${p.name}"></div>`).join('')}
+        </div>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary btn-sm" id="btn-bg-upload">Eigenes Bild</button>
+          <input type="file" id="bg-file" accept="image/*" style="display:none">
+          ${state.settings.customBg?'<button class="btn btn-danger btn-sm" id="btn-bg-clear">Bild entfernen</button>':''}
+        </div>
+      </div>
+      <div class="form-group"><label>Dezimalstellen</label>
+        <select id="decimal-places">
+          <option value="1" ${state.settings.decimalPlaces===1?'selected':''}>1</option>
+          <option value="2" ${state.settings.decimalPlaces===2?'selected':''}>2</option>
+          <option value="3" ${state.settings.decimalPlaces===3?'selected':''}>3</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Notengewichtung (Halbjahr)</h3>
+      <p class="form-hint" style="margin-bottom:0.85rem">So wird der Fachdurchschnitt berechnet: Klassenarbeiten und sonstige Noten werden getrennt gemittelt und dann mit diesen Anteilen verrechnet.</p>
+      <div class="slider-row">
+        <label><span>Klassenarbeiten</span><strong id="lbl-exam">${we} %</strong></label>
+        <input type="range" id="slider-exam" min="0" max="100" step="5" value="${we}">
+      </div>
+      <div class="slider-row">
+        <label><span>Sonstige Noten</span><strong id="lbl-other">${wo} %</strong></label>
+        <input type="range" id="slider-other" min="0" max="100" step="5" value="${wo}">
+      </div>
+      <p class="form-hint" id="weight-sum-hint">Summe: ${we+wo} % ${we+wo!==100?'– sollte 100 % ergeben':''}</p>
+      <button class="btn btn-primary btn-sm" id="save-weights" style="margin-top:0.5rem">Speichern</button>
+    </div>
+
+    <div class="settings-section">
+      <h3>Passwortschutz</h3>
+      <div class="toggle-row"><span>Passwortschutz aktiv</span>
+        <div class="toggle ${state.settings.passwordEnabled?'on':''}" id="toggle-pw-enabled"></div>
+      </div>
+      <div style="margin-top:0.85rem"><button class="btn btn-secondary" id="btn-change-pw">Passwort ändern</button></div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Datenverwaltung</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:0.65rem">
+        <button class="btn btn-primary" id="btn-export">JSON exportieren</button>
+        <button class="btn btn-secondary" id="btn-import">JSON importieren</button>
+        <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+        <button class="btn btn-danger" id="btn-reset">Alle Daten löschen</button>
+      </div>
+    </div>
+  `;
+
+  // Theme
+  $('#toggle-theme')?.addEventListener('click', () => {
+    state.settings.theme = state.settings.theme==='dark'?'light':'dark';
+    applyTheme(); saveState();
+    $('#toggle-theme').classList.toggle('on', state.settings.theme==='dark');
+  });
+  // Accent
+  $$('#accent-colors .color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      state.settings.accent = sw.dataset.color; applyAccent(); saveState();
+      $$('#accent-colors .color-swatch').forEach(s => s.classList.toggle('selected', s.dataset.color===state.settings.accent));
+    });
+  });
+  // Background presets
+  $$('#bg-presets .bg-preset').forEach(el => {
+    el.addEventListener('click', () => {
+      state.settings.bgPreset = el.dataset.id;
+      state.settings.customBg = null;
+      applyBackground(); saveState();
+      navigate('settings');
+    });
+  });
+  $('#btn-bg-upload')?.addEventListener('click', () => $('#bg-file').click());
+  $('#bg-file')?.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2.5e6) { toast('Bild zu groß (max. ca. 2,5 MB)', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.settings.customBg = reader.result;
+      applyBackground(); saveState();
+      toast('Hintergrund gesetzt', 'success');
+      navigate('settings');
+    };
+    reader.readAsDataURL(file);
+  });
+  $('#btn-bg-clear')?.addEventListener('click', () => {
+    state.settings.customBg = null; applyBackground(); saveState();
+    navigate('settings');
+  });
+  $('#decimal-places')?.addEventListener('change', e => {
+    state.settings.decimalPlaces = parseInt(e.target.value); saveState();
+    toast('Gespeichert','success');
+  });
+
+  // Weight sliders – linked to sum 100
+  const syncWeights = (from) => {
+    let e = parseInt($('#slider-exam').value);
+    let o = parseInt($('#slider-other').value);
+    if (from === 'exam') { o = 100 - e; $('#slider-other').value = o; }
+    else { e = 100 - o; $('#slider-exam').value = e; }
+    $('#lbl-exam').textContent = e + ' %';
+    $('#lbl-other').textContent = o + ' %';
+    $('#weight-sum-hint').textContent = `Summe: ${e+o} %`;
+  };
+  $('#slider-exam')?.addEventListener('input', () => syncWeights('exam'));
+  $('#slider-other')?.addEventListener('input', () => syncWeights('other'));
+  $('#save-weights')?.addEventListener('click', () => {
+    state.settings.weightExam = parseInt($('#slider-exam').value);
+    state.settings.weightOther = parseInt($('#slider-other').value);
+    saveState();
+    toast('Gewichtung gespeichert', 'success');
+  });
+
+  // Password
+  $('#toggle-pw-enabled')?.addEventListener('click', async () => {
+    if (state.settings.passwordEnabled) {
+      openModal('Passwortschutz deaktivieren', `
+        <div class="form-group"><label>Aktuelles Passwort</label>
+          <input type="password" id="pw-confirm-disable"></div>
+      `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+          <button class="btn btn-danger" id="confirm-disable-pw">Deaktivieren</button>`);
+      $('#confirm-disable-pw').onclick = async () => {
+        if (!(await checkPassword($('#pw-confirm-disable').value))) { toast('Falsches Passwort','error'); return; }
+        state.settings.passwordEnabled = false; saveState(); closeModal();
+        toast('Deaktiviert','success'); navigate('settings');
+      };
+    } else {
+      state.settings.passwordEnabled = true; saveState();
+      toast('Aktiviert','success'); $('#toggle-pw-enabled').classList.add('on');
+    }
+  });
+  $('#btn-change-pw')?.addEventListener('click', () => {
+    openModal('Passwort ändern', `
+      ${state.settings.passwordEnabled?`<div class="form-group"><label>Aktuelles Passwort</label>
+        <input type="password" id="pw-old"></div>`:''}
+      <div class="form-group"><label>Neues Passwort</label><input type="password" id="pw-new"></div>
+      <div class="form-group"><label>Wiederholen</label><input type="password" id="pw-new2"></div>
+    `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+        <button class="btn btn-primary" id="confirm-change-pw">Speichern</button>`);
+    $('#confirm-change-pw').onclick = async () => {
+      if (state.settings.passwordEnabled && !(await checkPassword($('#pw-old').value))) {
+        toast('Aktuelles Passwort falsch','error'); return;
+      }
+      const n1=$('#pw-new').value, n2=$('#pw-new2').value;
+      if (!n1||n1.length<4){toast('Mindestens 4 Zeichen','error');return;}
+      if (n1!==n2){toast('Stimmt nicht überein','error');return;}
+      state.settings.passwordHash = await sha256(n1);
+      state.settings.passwordEnabled = true; saveState(); closeModal();
+      toast('Passwort geändert','success'); navigate('settings');
+    };
+  });
+
+  // Export / Import / Reset
+  $('#btn-export')?.addEventListener('click', () => {
+    const data = { version: 2, exportedAt: new Date().toISOString(),
+      subjects: state.subjects, grades: state.grades, provisional: state.provisional,
+      settings: { ...state.settings, passwordHash: undefined, customBg: undefined }
+    };
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `notenmanager-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); toast('Export gestartet','success');
+  });
+  $('#btn-import')?.addEventListener('click', () => $('#import-file').click());
+  $('#import-file')?.addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!data.subjects || !Array.isArray(data.subjects)) throw new Error('Ungültiges Format');
+      openModal('Import bestätigen', `
+        <p>Vorhandene Daten werden <strong>überschrieben</strong>.</p>
+        <p>${data.subjects?.length||0} Fächer, ${data.grades?.length||0} Noten, ${data.provisional?.length||0} vorläufige.</p>
+      `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+          <button class="btn btn-danger" id="confirm-import">Importieren</button>`);
+      $('#confirm-import').onclick = () => {
+        state.subjects = data.subjects||[];
+        state.grades = data.grades||[];
+        state.provisional = data.provisional||[];
+        if (data.settings) {
+          const { passwordHash, customBg, ...rest } = data.settings;
+          Object.assign(state.settings, rest);
+        }
+        saveState(); applyTheme(); applyAccent(); applyBackground();
+        closeModal(); toast('Import erfolgreich','success'); navigate('dashboard');
+      };
+    } catch (err) { toast('Import fehlgeschlagen: '+err.message,'error'); }
+    e.target.value = '';
+  });
+  $('#btn-reset')?.addEventListener('click', () => {
+    openModal('Alle Daten löschen', `
+      <p style="color:var(--danger);font-weight:600">Alle Fächer und Noten werden unwiderruflich gelöscht.</p>
+      <p style="margin-top:0.65rem">Gib <strong>LÖSCHEN</strong> ein:</p>
+      <input type="text" id="reset-confirm" style="width:100%;margin-top:0.4rem;padding:0.65rem;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;color:var(--text)">
+    `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+        <button class="btn btn-danger" id="confirm-reset">Endgültig löschen</button>`);
+    $('#confirm-reset').onclick = () => {
+      if ($('#reset-confirm').value!=='LÖSCHEN'){toast('Bestätigung falsch','error');return;}
+      state.subjects=[]; state.grades=[]; state.provisional=[]; saveState();
+      closeModal(); toast('Gelöscht','success'); navigate('dashboard');
+    };
+  });
+};
+
+// ========== CRUD MODALS ==========
+function openSubjectModal(id=null) {
+  const s = id ? state.subjects.find(x=>x.id===id) : null;
+  openModal(s?'Fach bearbeiten':'Neues Fach', `
+    <div class="form-group"><label>Name *</label><input type="text" id="f-name" value="${escapeHtml(s?.name||'')}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Kürzel</label><input type="text" id="f-short" value="${escapeHtml(s?.short||'')}" maxlength="6"></div>
+      <div class="form-group"><label>Emoji</label><input type="text" id="f-emoji" value="${escapeHtml(s?.emoji||'')}" maxlength="4" placeholder="📐"></div>
+    </div>
+    <div class="form-group"><label>Farbe</label>
+      <div class="color-picker-row" id="f-colors">
+        ${PRESET_COLORS.map(c=>`<div class="color-swatch ${(s?.color||PRESET_COLORS[0])===c?'selected':''}" style="background:${c}" data-color="${c}"></div>`).join('')}
+      </div>
+    </div>
+    <div class="form-group"><label>Beschreibung</label><textarea id="f-desc">${escapeHtml(s?.description||'')}</textarea></div>
+    <div class="form-group"><label><input type="checkbox" id="f-fav" ${s?.favorite?'checked':''}> Favorit</label></div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="save-subject">Speichern</button>`);
+  let selectedColor = s?.color || PRESET_COLORS[0];
+  $$('#f-colors .color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      selectedColor = sw.dataset.color;
+      $$('#f-colors .color-swatch').forEach(x=>x.classList.toggle('selected',x.dataset.color===selectedColor));
+    });
+  });
+  $('#save-subject').onclick = () => {
+    const name = $('#f-name').value.trim();
+    if (!name) { toast('Name erforderlich','error'); return; }
+    if (s) {
+      Object.assign(s, { name, short:$('#f-short').value.trim(), emoji:$('#f-emoji').value.trim(),
+        color:selectedColor, description:$('#f-desc').value.trim(), favorite:$('#f-fav').checked });
+    } else {
+      state.subjects.push({ id:uid(), name, short:$('#f-short').value.trim(), emoji:$('#f-emoji').value.trim(),
+        color:selectedColor, description:$('#f-desc').value.trim(), favorite:$('#f-fav').checked,
+        notes:'', targetAverage:null });
+    }
+    saveState(); closeModal(); toast(s?'Aktualisiert':'Fach angelegt','success');
+    const cur = $$('.nav-item.active')[0]?.dataset.view||'dashboard';
+    if (cur==='subjectDetail'&&s) navigate('subjectDetail',{id:s.id});
+    else navigate(cur==='subjects'?'subjects':'dashboard');
+  };
+}
+
+function openGradeModal(id=null, preSubject=null) {
+  const g = id ? state.grades.find(x=>x.id===id) : null;
+  const cat = g?.category || 'sonstige';
+  const sem = g?.semester || state.settings.activeSemester;
+  openModal(g?'Note bearbeiten':'Note hinzufügen', `
+    <div class="form-group"><label>Fach *</label>
+      <select id="g-subject"><option value="">Bitte wählen</option>
+        ${state.subjects.map(s=>`<option value="${s.id}" ${(g?.subjectId||preSubject)===s.id?'selected':''}>${escapeHtml(s.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label>Note * (1–6, auch 1+ / 2− / 2,5)</label>
+      <input type="text" id="g-value" value="${g?displayGrade(g.value):''}" placeholder="z.B. 2+"></div>
+    <div class="form-group"><label>Art</label>
+      <div class="cat-toggle" id="g-cat-toggle">
+        <button type="button" data-cat="sonstige" class="${cat==='sonstige'?'active':''}">Sonstige Note</button>
+        <button type="button" data-cat="klassenarbeit" class="${cat==='klassenarbeit'?'active':''}">Klassenarbeit</button>
+      </div>
+    </div>
+    <div class="form-group"><label>Titel</label>
+      <input type="text" id="g-title" value="${escapeHtml(g?.title||'')}" placeholder="z.B. 1. Klassenarbeit"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Datum</label>
+        <input type="date" id="g-date" value="${g?.date?g.date.slice(0,10):new Date().toISOString().slice(0,10)}"></div>
+      <div class="form-group"><label>Halbjahr</label>
+        <select id="g-semester">
+          <option value="1" ${sem===1?'selected':''}>1. Halbjahr</option>
+          <option value="2" ${sem===2?'selected':''}>2. Halbjahr</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Kommentar</label>
+      <textarea id="g-comment">${escapeHtml(g?.comment||'')}</textarea></div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="save-grade">Speichern</button>`);
+
+  let selectedCat = cat;
+  $$('#g-cat-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedCat = btn.dataset.cat;
+      $$('#g-cat-toggle button').forEach(b => b.classList.toggle('active', b.dataset.cat===selectedCat));
+    });
+  });
+
+  $('#save-grade').onclick = () => {
+    const subjectId = $('#g-subject').value;
+    const value = parseGrade($('#g-value').value);
+    if (!subjectId) { toast('Fach wählen','error'); return; }
+    if (value==null||value<0.75||value>6.25) { toast('Ungültige Note','error'); return; }
+    const payload = {
+      subjectId, value,
+      title: $('#g-title').value.trim(),
+      category: selectedCat,
+      date: $('#g-date').value || new Date().toISOString().slice(0,10),
+      semester: parseInt($('#g-semester').value) || 1,
+      comment: $('#g-comment').value.trim(),
+      updated: new Date().toISOString()
+    };
+    if (g) Object.assign(g, payload);
+    else state.grades.push({ id: uid(), ...payload });
+    saveState(); closeModal(); toast(g?'Aktualisiert':'Note gespeichert','success');
+    const cur = $$('.nav-item.active')[0]?.dataset.view;
+    if (cur === 'subjectDetail') navigate('subjectDetail', { id: subjectId });
+    else if (cur === 'grades') navigate('grades', { subjectId });
+    else navigate(cur || 'grades');
+  };
+}
+
+function openProvisionalModal(id=null, preSubject=null) {
+  const p = id ? state.provisional.find(x=>x.id===id) : null;
+  const cat = p?.category || 'klassenarbeit';
+  const sem = p?.semester || state.settings.activeSemester;
+  openModal(p?'Vorläufige Note bearbeiten':'Vorläufige Note', `
+    <div class="form-group"><label>Fach *</label>
+      <select id="p-subject"><option value="">Bitte wählen</option>
+        ${state.subjects.map(s=>`<option value="${s.id}" ${(p?.subjectId||preSubject)===s.id?'selected':''}>${escapeHtml(s.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label>Titel *</label>
+      <input type="text" id="p-title" value="${escapeHtml(p?.title||'')}" placeholder="z.B. 2. Klassenarbeit"></div>
+    <div class="form-group"><label>Art</label>
+      <div class="cat-toggle" id="p-cat-toggle">
+        <button type="button" data-cat="sonstige" class="${cat==='sonstige'?'active':''}">Sonstige</button>
+        <button type="button" data-cat="klassenarbeit" class="${cat==='klassenarbeit'?'active':''}">Klassenarbeit</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Datum</label>
+        <input type="date" id="p-date" value="${p?.date?p.date.slice(0,10):''}"></div>
+      <div class="form-group"><label>Halbjahr</label>
+        <select id="p-semester">
+          <option value="1" ${sem===1?'selected':''}>1. Halbjahr</option>
+          <option value="2" ${sem===2?'selected':''}>2. Halbjahr</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Erwartete Note (optional)</label>
+      <input type="text" id="p-expected" value="${p?.expectedGrade!=null?displayGrade(p.expectedGrade):''}" placeholder="z.B. 2"></div>
+    <div class="form-group"><label>Kommentar</label>
+      <textarea id="p-comment">${escapeHtml(p?.comment||'')}</textarea></div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="save-prov">Speichern</button>`);
+
+  let selectedCat = cat;
+  $$('#p-cat-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedCat = btn.dataset.cat;
+      $$('#p-cat-toggle button').forEach(b => b.classList.toggle('active', b.dataset.cat===selectedCat));
+    });
+  });
+
+  $('#save-prov').onclick = () => {
+    const subjectId = $('#p-subject').value;
+    const title = $('#p-title').value.trim();
+    if (!subjectId||!title) { toast('Fach und Titel erforderlich','error'); return; }
+    const payload = {
+      subjectId, title, category: selectedCat,
+      date: $('#p-date').value || null,
+      semester: parseInt($('#p-semester').value)||1,
+      expectedGrade: parseGrade($('#p-expected').value),
+      comment: $('#p-comment').value.trim(), status: 'Offen'
+    };
+    if (p) Object.assign(p, payload);
+    else state.provisional.push({ id:uid(), ...payload });
+    saveState(); closeModal(); toast(p?'Aktualisiert':'Gespeichert','success');
+    const cur = $$('.nav-item.active')[0]?.dataset.view;
+    if (cur === 'subjectDetail') navigate('subjectDetail', { id: subjectId });
+    else if (cur === 'provisional') navigate('provisional', { subjectId });
+    else navigate(cur || 'provisional');
+  };
+}
+
+function confirmProvisional(id) {
+  const p = state.provisional.find(x=>x.id===id);
+  if (!p) return;
+  openModal('Note bestätigen', `
+    <p style="margin-bottom:0.9rem">Wird in die endgültigen Noten übernommen, vorläufiger Eintrag wird entfernt.</p>
+    <div class="form-group"><label>Tatsächliche Note *</label>
+      <input type="text" id="c-value" value="${p.expectedGrade!=null?displayGrade(p.expectedGrade):''}" placeholder="z.B. 2+"></div>
+    <div class="form-group"><label>Titel</label>
+      <input type="text" id="c-title" value="${escapeHtml(p.title||'')}"></div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="do-confirm">Übernehmen</button>`);
+  $('#do-confirm').onclick = () => {
+    const value = parseGrade($('#c-value').value);
+    if (value==null) { toast('Gültige Note eingeben','error'); return; }
+    state.grades.push({
+      id: uid(), subjectId: p.subjectId, value,
+      title: $('#c-title').value.trim()||p.title,
+      category: p.category||'klassenarbeit',
+      date: p.date||new Date().toISOString().slice(0,10),
+      semester: p.semester||1,
+      comment: p.comment||'', updated: new Date().toISOString()
+    });
+    state.provisional = state.provisional.filter(x=>x.id!==id);
+    saveState(); closeModal(); toast('Note übernommen','success'); navigate('grades');
+  };
+}
+
+function deleteGrade(id) {
+  const grade = state.grades.find(g => g.id === id);
+  openModal('Note löschen','<p>Wirklich löschen?</p>',
+    `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+     <button class="btn btn-danger" id="do-del-grade">Löschen</button>`);
+  $('#do-del-grade').onclick = () => {
+    state.grades = state.grades.filter(g => g.id !== id); saveState();
+    closeModal(); toast('Gelöscht','success');
+    const cur = $$('.nav-item.active')[0]?.dataset.view || 'grades';
+    if (cur === 'grades' && grade) navigate('grades', { subjectId: grade.subjectId });
+    else if (cur === 'subjectDetail' && grade) navigate('subjectDetail', { id: grade.subjectId });
+    else navigate(cur);
+  };
+}
+function deleteProvisional(id) {
+  const item = state.provisional.find(p => p.id === id);
+  openModal('Löschen','<p>Eintrag wirklich löschen?</p>',
+    `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+     <button class="btn btn-danger" id="do-del-prov">Löschen</button>`);
+  $('#do-del-prov').onclick = () => {
+    state.provisional = state.provisional.filter(p => p.id !== id); saveState();
+    closeModal(); toast('Gelöscht','success');
+    if (item) navigate('provisional', { subjectId: item.subjectId });
+    else navigate('provisional');
+  };
+}
+function deleteSubject(id) {
+  const s = state.subjects.find(x=>x.id===id);
+  const gCount = state.grades.filter(g=>g.subjectId===id).length;
+  const pCount = state.provisional.filter(p=>p.subjectId===id).length;
+  openModal('Fach löschen', `
+    <p><strong>${escapeHtml(s?.name||'')}</strong> löschen?</p>
+    <p style="color:var(--danger);margin-top:0.65rem">${gCount} Note(n) und ${pCount} vorläufige Note(n) werden mitgelöscht.</p>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-danger" id="do-del-sub">Löschen</button>`);
+  $('#do-del-sub').onclick = () => {
+    state.subjects = state.subjects.filter(x=>x.id!==id);
+    state.grades = state.grades.filter(g=>g.subjectId!==id);
+    state.provisional = state.provisional.filter(p=>p.subjectId!==id);
+    saveState(); closeModal(); toast('Fach gelöscht','success'); navigate('subjects');
+  };
+}
+
+// ========== PASSWORD ==========
+async function initPassword() {
+  if (!state.settings.passwordHash) {
+    state.settings.passwordHash = await sha256(DEFAULT_PASSWORD);
+    saveState();
+  }
+}
+async function checkPassword(pw) {
+  return (await sha256(pw)) === state.settings.passwordHash;
+}
+async function tryLogin() {
+  if (!state.settings.passwordEnabled) { enterApp(); return; }
+  if (await checkPassword($('#login-pw').value)) {
+    $('#login-error').textContent = ''; enterApp();
+  } else {
+    $('#login-error').textContent = 'Falsches Passwort.';
+    $('#login-pw').value = ''; $('#login-pw').focus();
+  }
+}
+function enterApp() {
+  $('#login-screen').classList.add('hidden');
+  $('#app').classList.add('visible');
+  navigate('dashboard');
+}
+$('#login-btn').addEventListener('click', tryLogin);
+$('#login-pw').addEventListener('keydown', e => { if (e.key==='Enter') tryLogin(); });
+$('#toggle-login-pw').addEventListener('click', () => {
+  const inp = $('#login-pw'); inp.type = inp.type==='password'?'text':'password';
+});
+/* Schnellaktionen entfernt – Hinzufügen über Dashboard / Fachansicht */
+
+// ========== INIT ==========
+(async function init() {
+  loadState();
+  await initPassword();
+  applyTheme();
+  applyAccent();
+  applyBackground();
+  if (!state.settings.passwordEnabled) enterApp();
+  else $('#login-pw').focus();
+})();
+</script>
+</body>
+</html>
